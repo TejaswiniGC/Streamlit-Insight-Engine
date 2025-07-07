@@ -1,0 +1,8 @@
+streamlit
+pandas
+google-cloud-bigquery
+db-dtypes
+plotly
+google-cloud-bigquery-storage
+st-gsheets-connection
+tldextract

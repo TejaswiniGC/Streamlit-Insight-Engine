@@ -1,0 +1,137 @@
+/* styles.css */
+
+/* --- General Dashboard Styling --- */
+body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    background-color: #f5f7fa; /* Light grey background for the app */
+}
+
+.main .block-container {
+    padding-top: 2rem;
+    padding-right: 2rem;
+    padding-left: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1200px; /* Max width for content */
+}
+
+/* Streamlit Sidebar Styling */
+/* Note: Class names like .css-xxxx can change with Streamlit updates. Inspect to verify. */
+.css-1d391kg { /* This typically targets the sidebar container */
+    background-color: #ffffff; /* White sidebar */
+    border-right: 1px solid #e0e0e0;
+    padding: 1.5rem 1rem;
+    box-shadow: 2px 0px 5px rgba(0,0,0,0.05); /* Subtle shadow */
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #2c3e50; /* Dark blue-grey for headings */
+    font-weight: 700; /* Bolder headings */
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.75rem; }
+
+/* Horizontal Rule (separator) */
+hr {
+    border: none;
+    border-top: 2px solid #e0e0e0; /* Light grey thicker line */
+    margin: 2.5rem 0;
+}
+
+/* --- KPI Section Styling --- */
+/* Target the overall st.metric container */
+div[data-testid="stMetric"] {
+    background-color: #ffffff; /* White background for KPI boxes */
+    border-radius: 12px; /* More rounded corners */
+    padding: 20px 25px; /* Ample inner padding */
+    margin-bottom: 15px; /* Space below each metric */
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.1); /* More prominent shadow */
+    border-left: 6px solid #157ab5; /* Teal accent border */
+    transition: transform 0.2s ease-in-out; /* Smooth hover effect */
+}
+
+div[data-testid="stMetric"]:hover {
+    transform: translateY(-5px); /* Lift effect on hover */
+}
+
+/* Style the metric value (the number) */
+div[data-testid="stMetricValue"] {
+    font-size: 40px; /* Very large font for value */
+    color: #34495e; /* Darker text for value */
+    font-weight: 800; /* Extra bold */
+    margin-bottom: 5px;
+}
+
+/* Style the metric label (the text like "Total Revenue") */
+div[data-testid="stMetricLabel"] {
+    font-size: 17px; /* Clear font for label */
+    color: #7f8c8d; /* Muted grey for label */
+    text-transform: uppercase; /* Uppercase labels */
+    letter-spacing: 0.5px;
+}
+
+/* Style the metric delta (the change indicator) */
+div[data-testid="stMetricDelta"] {
+    font-size: 18px; /* Slightly larger delta */
+    font-weight: bold;
+    /* Streamlit automatically sets green/red for positive/negative delta */
+}
+
+
+/* --- Graph Section Styling --- */
+/* Target the container for Plotly charts */
+.stPlotlyChart {
+    background-color: #ffffff; /* White background for charts */
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+}
+
+/* You can add more specific styles for Plotly elements if needed,
+   but often Plotly's default styling is good within its container. */
+
+/* Custom Info/Warning Boxes */
+.stAlert.info {
+    background-color: #e8f5e9; /* Light green background */
+    color: #2e7d32; /* Dark green text */
+    border-left: 5px solid #4CAF50;
+    border-radius: 8px;
+}
+.stAlert.warning {
+    background-color: #fff3e0; /* Light orange background */
+    color: #ef6c00; /* Dark orange text */
+    border-left: 5px solid #ff9800;
+    border-radius: 8px;
+}
+
+/* Buttons */
+.stButton>button {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Primary Button (Example, if you set primaryColor in config.toml) */
+.stButton>button[kind="primary"] {
+    background-color: #007bff; /* Example primary color */
+    color: white;
+    border: none;
+}
+.stButton>button[kind="primary"]:hover {
+    background-color: #0056b3;
+}
