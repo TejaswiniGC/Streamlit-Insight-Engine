@@ -15,17 +15,14 @@ def calculate_sales_kpis(df):
             "total_shipping_cost": 0
         }
 
-    # Corrected Total Orders: Count unique order_ids
     total_orders = df['order_id'].nunique()
 
     unique_orders_df = df.drop_duplicates(subset=['order_id'])
 
     total_revenue = unique_orders_df['total_order_value'].sum()
     
-    # Calculate AOV based on corrected total revenue and total orders
     average_order_value = total_revenue / total_orders if total_orders > 0 else 0
 
-    # These can typically be summed directly as they relate to each line item
     total_discount_amount = df['discount_amount'].sum()
     total_tax_amount = df['tax_amount'].sum()
     total_shipping_cost = df['shipping_cost'].sum()
@@ -47,10 +44,8 @@ def get_daily_revenue_trend(df):
     if df.empty:
         return pd.DataFrame()
 
-    # De-duplicate orders before grouping to ensure each order's value is counted once per day
     unique_orders_daily = df.drop_duplicates(subset=['order_id']).copy()
     
-    # Ensure 'order_date' is treated as just a date for grouping
     unique_orders_daily['order_day'] = unique_orders_daily['order_date'].dt.date
 
     daily_revenue = unique_orders_daily.groupby('order_day')['total_order_value'].sum().reset_index()
