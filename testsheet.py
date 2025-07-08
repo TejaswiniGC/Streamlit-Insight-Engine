@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils.data_loader import load_ecommerce_data # Assuming this loads your main DataFrame
+from utils.data_loader import load_ecommerce_data 
 
 st.set_page_config(layout="wide", page_title="Raw Referring Sites Viewer", page_icon="🔍")
 
