@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
-import os, re, gspread, json # Removed unused json, re-added for clarity if needed elsewhere
+import os, re, gspread, json 
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection # This might be conflicting with direct gspread
+from streamlit_gsheets import GSheetsConnection 
 from tldextract import extract 
 
 # --- Configuration Constants ---
