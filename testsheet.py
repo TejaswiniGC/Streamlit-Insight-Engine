@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_ecommerce_data 
 
-st.set_page_config(layout="wide", page_title="Raw Referring Sites Viewer", page_icon="🔍")
+st.set_page_config(layout="wide", page_title="Raw Referring Sites Viewer")
 
-st.title("🔍 Raw Referring Sites Viewer")
+st.title(" Raw Referring Sites Viewer")
 
 st.markdown("""
 This tool allows you to inspect the raw values of the 'referring_site' column
