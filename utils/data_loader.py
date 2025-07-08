@@ -18,7 +18,6 @@ RETURNS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1NL2TWlA2nyz04ZSy5U3
 RETURNS_WORKSHEET_NAME = "Sheet1"
 
 # --- Cached Client Initializations ---
-
 @st.cache_resource(ttl=3600) # Cache the BigQuery client object
 def get_bigquery_client_cached():
     try:
@@ -55,8 +54,8 @@ def load_returned_products_data():
     """
     df_returns = pd.DataFrame() 
     try:
-        gc = get_gsheets_client_cached() # Get the cached gspread client
-        if gc is None: # If client initialization failed
+        gc = get_gsheets_client_cached() 
+        if gc is None: 
             st.warning("Google Sheets client not available. Cannot load returned products data.")
             return pd.DataFrame()
 
@@ -68,7 +67,7 @@ def load_returned_products_data():
             df_returns = pd.DataFrame(data[1:], columns=data[0])
         else:
             st.warning("Google Sheet is empty or contains no data.")
-            return pd.DataFrame() # Return empty if no data
+            return pd.DataFrame() 
 
         # --- UPDATED RENAMING CODE ---
         required_renames = {
@@ -120,7 +119,7 @@ def load_customer_data():
     Caches the result for 1 hour.
     """
     try:
-        client = get_bigquery_client_cached() # Get the cached BigQuery client
+        client = get_bigquery_client_cached() 
         if client is None: # If client initialization failed
             st.warning("BigQuery client not available. Cannot load customer data.")
             return pd.DataFrame()
@@ -291,12 +290,12 @@ def advanced_clean_referring_site(url):
             if "utm_source=facebook" in url_lower or "fbclid=" in url_lower or "gad_source=1" in url_lower or "campaign_id=" in url_lower:
                 return "The Affordable Organic Store (Paid Ads)"
             
-            return "The Affordable Organic Store" # Standardized main store name
+            return "The Affordable Organic Store" 
 
         # Social Media
-        if "instagram.com" in url_lower: # Catches l.instagram.com, instagram.com, etc.
+        if "instagram.com" in url_lower: 
             return "Instagram"
-        if "facebook.com" in url_lower: # Catches l.facebook.com, m.facebook.com, lm.facebook.com, facebook.com, etc.
+        if "facebook.com" in url_lower: 
             return "Facebook"
         if "t.co" in url_lower: 
             return "Twitter"
@@ -311,7 +310,6 @@ def advanced_clean_referring_site(url):
 
         # Search Engines
         if "google.com" in url_lower:
-            # Check if it's explicitly an ads domain or syndication
             if "googleads.g.doubleclick.net" in url_lower or "googlesyndication.com" in url_lower:
                 return "Google Ads"
             
@@ -344,18 +342,16 @@ def advanced_clean_referring_site(url):
         if "idevaffiliate.com" in url_lower:
             return "iDevAffiliate"
 
-        # --- Step 3: Use tldextract for robust generic domain extraction ---
+        # --- Step 3: Using tldextract for robust generic domain extraction ---
         extracted = extract(url_lower)
-        
-        # Prioritize the domain if it's available from tldextract
+
         if extracted.domain:
             return extracted.domain.replace('-', ' ').title()
         
-        # --- Fallback for URLs not handled by tldextract (e.g., malformed, internal IDs) ---
         parsed_url = urlparse(url_lower)
         domain = parsed_url.netloc
 
-        if not domain: # If urlparse couldn't get a domain or it's just malformed text
+        if not domain: 
             if re.match(r'^[a-f0-9]{32}$', url_lower):
                 return "Internal ID/Tracker"
             return "Other (No Domain)"
@@ -368,7 +364,7 @@ def advanced_clean_referring_site(url):
         return "Other (Generic Domain Fallback)"
 
     except Exception as e:
-        # print(f"Error cleaning URL '{url}': {e}") # Uncomment for debugging
+        # print(f"Error cleaning URL '{url}': {e}") 
         return "Other (Error)"
 
 def process_product_tags(tags_string):
@@ -430,15 +426,14 @@ def calculate_rfm(df_orders: pd.DataFrame, df_customers_master: pd.DataFrame) ->
     rfm_df['M_Score'] = rfm_df['Monetary'].rank(method='first', ascending=True).astype(int)
 
     # Normalize ranks to 1-5 scale (assuming at least 5 unique values or categories after rank)
-    # This is a common way to scale ranks to a fixed number of bins (like 5)
     rfm_df['R_Score'] = pd.qcut(rfm_df['R_Score'], 5, labels=[1, 2, 3, 4, 5], duplicates='drop').astype(int)
     rfm_df['F_Score'] = pd.qcut(rfm_df['F_Score'], 5, labels=[1, 2, 3, 4, 5], duplicates='drop').astype(int)
     rfm_df['M_Score'] = pd.qcut(rfm_df['M_Score'], 5, labels=[1, 2, 3, 4, 5], duplicates='drop').astype(int)
 
-    # Create RFM Score (combined R, F, M score for segmentation)
+    # Creating RFM Score (combined R, F, M score for segmentation)
     rfm_df['RFM_Score'] = rfm_df['R_Score'].astype(str) + rfm_df['F_Score'].astype(str) + rfm_df['M_Score'].astype(str)
 
-    # --- RFM Segmentation (common approach) ---
+    # --- RFM Segmentation ---
     def rfm_segment(row):
         if row['R_Score'] >= 4 and row['F_Score'] >= 4 and row['M_Score'] >= 4:
             return 'Champions' # Bought recently, buy often, spend a lot
