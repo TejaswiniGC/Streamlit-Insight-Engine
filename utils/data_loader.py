@@ -5,7 +5,7 @@ import os, re, gspread, json
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
-from tldextract import extract # Keep this import, it's essential
+from tldextract import extract 
 
 PROJECT_ID = "second-impact-388206"
 DATASET_ID = "dashboard_data"
