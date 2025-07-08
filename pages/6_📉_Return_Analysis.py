@@ -174,7 +174,7 @@ with col4:
 
 st.markdown("---")
 
-st.header("Top Products by Return Quantity and Rate")
+st.header("Products by Return Quantity and Rate")
 df_product_returns = df_combined.groupby('product_name').agg(
     total_returned_quantity=('total_returned_quantity', 'sum'),
     total_sold_quantity=('total_sold_quantity', 'sum'),
@@ -193,6 +193,7 @@ df_product_returns_sorted_rate = df_product_returns.sort_values(by='return_rate_
 col_top_qty, col_top_rate = st.columns(2)
 
 with col_top_qty:
+    st.write("Top 10 Products by Returned Quantity")
     if not df_product_returns_sorted_qty.empty:
         st.dataframe(df_product_returns_sorted_qty.head(10).reset_index(drop=True).style.format({
             'total_returned_quantity': '{:,.0f}',
@@ -215,7 +216,7 @@ with col_top_qty:
         st.info("No product return quantity data available for the selected period.")
 
 with col_top_rate:
-    # Filter out products with 0 sold quantity but >0 returned quantity, as their rate will be NaN/Inf
+    st.write("Top 10 Products by Return Rate (%)")
     df_product_returns_sorted_rate_filtered = df_product_returns_sorted_rate[
         (df_product_returns_sorted_rate['total_sold_quantity'] > 0) |
         (df_product_returns_sorted_rate['total_returned_quantity'] == 0) # Include 0/0 scenarios for rate = 0
