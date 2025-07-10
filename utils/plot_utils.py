@@ -2,7 +2,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
-# import streamlit as st # Only uncomment if you use st.error/st.warning within this utility file
 
 def plot_time_series(df, x_col, y_col, title, y_axis_title):
     """
@@ -13,13 +12,10 @@ def plot_time_series(df, x_col, y_col, title, y_axis_title):
     if df.empty:
         return None
 
-    # Ensure x_col is datetime, if not already
     if not pd.api.types.is_datetime64_any_dtype(df[x_col]):
         try:
             df[x_col] = pd.to_datetime(df[x_col])
         except Exception as e:
-            # If you want Streamlit warnings/errors here, uncomment 'import streamlit as st'
-            # print(f"Error converting '{x_col}' to datetime in plot_time_series: {e}")
             return None
 
     fig = px.line(df, x=x_col, y=y_col,
@@ -29,7 +25,6 @@ def plot_time_series(df, x_col, y_col, title, y_axis_title):
                   line_shape="linear" # Ensures a straight line connection
                  )
 
-    # Set line color and fill color via update_traces
     fig.update_traces(
         fill='tozeroy',
         fillcolor='rgba(173, 216, 230, 0.3)', # Light blue with transparency
@@ -64,9 +59,7 @@ def plot_bar_chart(df, x_col, y_col, title, x_axis_title, y_axis_title, orientat
     # Force the gradient_within_bar logic for all bar charts as per new requirement
     gradient_within_bar = True
 
-    # --- MODIFIED: Custom colorscale for the gradient within the bar ---
-    # Define a custom list of blue colors using hex codes
-    # This ensures the gradient stays within distinct blue shades and avoids white.
+    # Defined a custom list of blue colors using hex codes.
     custom_blue_colorscale = [
         '#87CEEB',
         "#5ABAE7",
