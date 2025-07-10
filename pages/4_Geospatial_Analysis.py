@@ -16,7 +16,7 @@ try:
 except FileNotFoundError:
     st.error(f"Could not find {css_file_path}.")
 
-st.title("🗺️ Geospatial Sales Analysis")
+st.header(":blue[🗺️ Geospatial Sales Analysis]")
 
 st.markdown("""
 This section provides insights into sales distribution across different geographical regions,
@@ -27,7 +27,7 @@ leveraging both location names and precise latitude/longitude data.
 df = load_ecommerce_data()
 
 # --- Sidebar Filters ---
-st.sidebar.header("Filter Data")
+st.sidebar.header(":blue[🗺️ Apply Filters]")
 
 if not df.empty:
     valid_order_dates = df['order_date'].dropna()
@@ -82,7 +82,7 @@ if not df.empty:
         st.warning("No data available for the selected filters. Please adjust your date range or geographical filters.")
     else:
         # --- Geospatial KPIs ---
-        st.subheader("Geospatial Key Performance Indicators")
+        st.write("**Geospatial KPI**")
         
         unique_orders_for_geo = df_filtered.drop_duplicates(subset=['order_id'])
         total_geo_revenue = unique_orders_for_geo['total_order_value'].sum() if 'total_order_value' in unique_orders_for_geo.columns else 0
@@ -99,7 +99,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Sales Distribution Map ---
-        st.subheader("Sales Distribution Map")
+        st.write("#### Sales Distribution Map")
         st.info("The map visualizes sales volume by location. Larger circles indicate higher revenue. Zoom in to see more detail.")
 
         map_data = df_filtered.dropna(subset=['shipping_address_latitude', 'shipping_address_longitude', 'line_item_revenue']).copy()
@@ -144,7 +144,7 @@ if not df.empty:
 
         # --- Performance by State ---
         if 'geography_state' in df_filtered.columns:
-            st.subheader("Performance by State")
+            #st.write("#### Performance by State")
             state_revenue = df_filtered.groupby('geography_state')['line_item_revenue'].sum().nlargest(10).reset_index()
             state_orders = df_filtered.groupby('geography_state')['order_id'].nunique().nlargest(10).reset_index()
 
@@ -168,7 +168,7 @@ if not df.empty:
 
         # --- Performance by City ---
         if 'geography_city' in df_filtered.columns:
-            st.subheader("Performance by City")
+            #st.subheader("Performance by City")
             city_revenue = df_filtered.groupby('geography_city')['line_item_revenue'].sum().nlargest(10).reset_index()
             city_orders = df_filtered.groupby('geography_city')['order_id'].nunique().nlargest(10).reset_index()
 

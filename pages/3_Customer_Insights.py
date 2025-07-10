@@ -5,7 +5,7 @@ from utils.plot_utils import plot_bar_chart, plot_time_series
 from utils.kpi_calculations import format_kpi_number
 import plotly.express as px
 
-st.set_page_config(layout="wide", page_title="Customer Insights", page_icon="👥")
+st.set_page_config(layout="wide", page_title="Customer Insights", page_icon=":material/groups:")
 
 css_file_path = "styles.css" 
 
@@ -16,7 +16,7 @@ try:
 except FileNotFoundError:
     st.error(f"Could not find {css_file_path}.")
 
-st.title("👥 Customer Insights")
+st.header(":blue[:material/groups: Customer Insights]")
 
 st.markdown("""
 Explore customer demographics, acquisition trends, and lifetime value.
@@ -28,7 +28,7 @@ df_orders = load_ecommerce_data() # This is your merged_orderdata
 df_customers_master = load_customer_data() # This is complete customer table
 
 # --- Sidebar Filters ---
-st.sidebar.header("Filter Data")
+st.sidebar.header(":blue[:material/groups: Apply Filters]")
 
 # Date filter primarily for order-related metrics or customer signups within a period
 df_filtered_orders = pd.DataFrame()
@@ -100,7 +100,7 @@ else:
 selected_imputed_type = 'All' 
 if 'imputed_customer_type' in df_filtered_customers_by_signup.columns and not df_filtered_customers_by_signup['imputed_customer_type'].dropna().empty:
     unique_imputed_types = ['All'] + sorted(df_filtered_customers_by_signup['imputed_customer_type'].dropna().unique().tolist())
-    selected_imputed_type = st.sidebar.selectbox("Filter by Customer Type (Imputed)", unique_imputed_types)
+    selected_imputed_type = st.sidebar.selectbox("Filter by Customer Type", unique_imputed_types)
     if selected_imputed_type != 'All':
         df_filtered_customers_by_signup = df_filtered_customers_by_signup[df_filtered_customers_by_signup['imputed_customer_type'] == selected_imputed_type]
         # Re-filter orders based on the new set of customer IDs
@@ -113,7 +113,7 @@ if 'imputed_customer_type' in df_filtered_customers_by_signup.columns and not df
 selected_state_customer = 'All' 
 if 'state' in df_customers_master.columns and not df_customers_master['state'].dropna().empty:
     unique_states_customers = ['All'] + sorted(df_filtered_customers_by_signup['state'].dropna().unique().tolist())
-    selected_state_customer = st.sidebar.selectbox("Filter Customers by State (Registered)", unique_states_customers)
+    selected_state_customer = st.sidebar.selectbox("Filter Customers by State", unique_states_customers)
     if selected_state_customer != 'All':
         df_filtered_customers_by_signup = df_filtered_customers_by_signup[df_filtered_customers_by_signup['state'] == selected_state_customer]
         # Re-filter orders based on the new set of customer IDs
@@ -126,7 +126,7 @@ if 'city' in df_customers_master.columns and not df_customers_master['city'].dro
     # Filter cities based on selected state for customers
     current_cities_customers = df_filtered_customers_by_signup['city'].dropna().unique().tolist()
     unique_cities_customers = ['All'] + sorted(current_cities_customers)
-    selected_city_customer = st.sidebar.selectbox("Filter Customers by City (Registered)", unique_cities_customers)
+    selected_city_customer = st.sidebar.selectbox("Filter Customers by City", unique_cities_customers)
     if selected_city_customer != 'All':
         df_filtered_customers_by_signup = df_filtered_customers_by_signup[df_filtered_customers_by_signup['city'] == selected_city_customer]
         # Re-filter orders based on the new set of customer IDs
@@ -140,7 +140,7 @@ if df_filtered_orders.empty and df_filtered_customers_by_signup.empty:
     st.warning("No data available for the selected filters. Please adjust your date range or other filters.")
 else:
     # --- Customer KPIs ---
-    st.subheader("Customer Key Performance Indicators (Lifetime)")
+    st.write("**Customer Key Performance Indicators (Lifetime)**")
     
     total_customers = df_filtered_customers_by_signup['customer_id'].nunique() if 'customer_id' in df_filtered_customers_by_signup.columns else 0
     total_lifetime_spent = df_filtered_customers_by_signup['total_spent'].sum() if 'total_spent' in df_filtered_customers_by_signup.columns else 0
@@ -149,15 +149,15 @@ else:
     avg_lifetime_aov = df_filtered_customers_by_signup['aov'].mean() if 'aov' in df_filtered_customers_by_signup.columns else 0
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Active Customers (filtered by signup)", f"{format_kpi_number(int(total_customers))}")
-    col2.metric("Total Lifetime Revenue (filtered by signup)", f"₹ {format_kpi_number(total_lifetime_spent)}")
-    col3.metric("Avg. Lifetime Orders per Customer", f"{format_kpi_number(avg_lifetime_orders)}")
-    col4.metric("Avg. Lifetime AOV per Customer", f"₹ {format_kpi_number(avg_lifetime_aov)}")
+    col1.metric("Total Active Customers", f"{format_kpi_number(int(total_customers))}")
+    col2.metric("Total Revenue", f"₹ {format_kpi_number(total_lifetime_spent)}")
+    col3.metric("Avg. Orders/Customer", f"{format_kpi_number(avg_lifetime_orders)}")
+    col4.metric("AOV/Customer", f"₹ {format_kpi_number(avg_lifetime_aov)}")
 
     st.markdown("---")
 
     # --- Customer Acquisition Trend ---
-    st.subheader("Customer Acquisition Trend")
+    st.write("#### Customer Acquisition Trend")
     if 'signup_date' in df_customers_master.columns and not df_customers_master.empty:
         daily_signups_trend_data = df_customers_master.copy()
         daily_signups_trend_data = daily_signups_trend_data[
@@ -192,7 +192,7 @@ else:
     st.markdown("---")
 
     # --- Customer Type Distribution (Imputed from Master Data) ---
-    st.subheader("Customer Type Distribution (Imputed)")
+    #st.write("#### Customer Type Distribution")
     if 'imputed_customer_type' in df_filtered_customers_by_signup.columns and not df_filtered_customers_by_signup['imputed_customer_type'].dropna().empty:
         imputed_customer_type_dist = df_filtered_customers_by_signup['imputed_customer_type'].value_counts().reset_index()
         imputed_customer_type_dist.columns = ['Imputed Customer Type', 'Count']
@@ -200,7 +200,7 @@ else:
         fig_imputed_customer_type = px.pie(imputed_customer_type_dist, 
                                    values='Count', 
                                    names='Imputed Customer Type', 
-                                   title='Customer Distribution by Imputed Type',
+                                   title='Customer Distribution',
                                    hole=0.4)
         fig_imputed_customer_type.update_traces(textposition='inside', textinfo='percent+label')
         st.plotly_chart(fig_imputed_customer_type, use_container_width=True)
@@ -210,12 +210,12 @@ else:
     st.markdown("---")
 
     # --- Customers by State (Using df_filtered_customers_by_signup's 'state' column) ---
-    st.subheader("Customers by State (Registered Address)")
+    #st.write("#### Customers by State")
     if 'state' in df_filtered_customers_by_signup.columns and not df_filtered_customers_by_signup['state'].dropna().empty:
         customers_by_state = df_filtered_customers_by_signup.groupby('state')['customer_id'].nunique().nlargest(10).reset_index()
         customers_by_state.columns = ['State', 'Number of Customers']
         if not customers_by_state.empty:
-            fig_cust_state = plot_bar_chart(customers_by_state, 'State', 'Number of Customers', 'Top 10 Customers by State (Registered Address)', 'State', 'Number of Customers')
+            fig_cust_state = plot_bar_chart(customers_by_state, 'State', 'Number of Customers', 'Top 10 Customers base by State', 'State', 'Number of Customers')
             st.plotly_chart(fig_cust_state, use_container_width=True)
         else:
             st.info("No customer data available for states with current filters.")
@@ -225,12 +225,12 @@ else:
     st.markdown("---")
 
     # --- Customers by City (Using df_filtered_customers_by_signup's 'city' column) ---
-    st.subheader("Customers by City (Registered Address)")
+    #st.subheader("Customers by City (Registered Address)")
     if 'city' in df_filtered_customers_by_signup.columns and not df_filtered_customers_by_signup['city'].dropna().empty:
         customers_by_city = df_filtered_customers_by_signup.groupby('city')['customer_id'].nunique().nlargest(10).reset_index()
         customers_by_city.columns = ['City', 'Number of Customers']
         if not customers_by_city.empty:
-            fig_cust_city = plot_bar_chart(customers_by_city, 'City', 'Number of Customers', 'Top 10 Customers by City (Registered Address)', 'City', 'Number of Customers')
+            fig_cust_city = plot_bar_chart(customers_by_city, 'City', 'Number of Customers', 'Top 10 Customers base by City', 'City', 'Number of Customers')
             st.plotly_chart(fig_cust_city, use_container_width=True)
         else:
             st.info("No customer data available for cities with current filters.")
@@ -241,7 +241,7 @@ else:
 
 
     # --- Top Customers by Lifetime Value ---
-    st.subheader("Top Customers by Lifetime Value")
+    st.write("#### Top Customers by Lifetime Value")
     # Ensure using unfiltered master customer data for overall top customers
     if all(col in df_customers_master.columns for col in ['customer_id', 'total_spent', 'orders_count', 'aov']):
         top_customers = df_customers_master.nlargest(10, 'total_spent')[['customer_id', 'total_spent', 'orders_count', 'aov']].copy()

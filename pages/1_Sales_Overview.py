@@ -6,7 +6,7 @@ from utils.plot_utils import plot_time_series, plot_bar_chart # Ensure plot_util
 import plotly.express as px
 from datetime import date # Import date for date inputs
 
-st.set_page_config(layout="wide", page_title="Sales Overview", page_icon="📊", initial_sidebar_state="expanded")
+st.set_page_config(layout="wide", page_title="Sales Overview", page_icon=":material/finance_mode:", initial_sidebar_state="expanded")
 
 css_file_path = "styles.css" 
 
@@ -17,7 +17,7 @@ try:
 except FileNotFoundError:
     st.error(f"Could not find {css_file_path}.")
 
-st.title("📊 Sales Overview")
+st.header(":blue[:material/finance_mode: Sales Overview]")
 
 st.markdown("""
 This section provides a high-level view of your sales performance, including key metrics, trends,
@@ -27,7 +27,7 @@ and breakdowns by various dimensions. Use the filters on the sidebar to analyze 
 df = load_ecommerce_data()
 
 # --- Sidebar Filters ---
-st.sidebar.header("Filter Data")
+st.sidebar.header(":blue[:material/finance_mode: Apply Filters]")
 
 if not df.empty:
     # Ensure 'order_date' is datetime
@@ -112,13 +112,13 @@ if not df.empty:
         st.warning("No data available for the selected filters. Please adjust your date range or other filters.")
     else:
         # --- Display KPIs ---
-        st.subheader("Key Performance Indicators")
+        st.write("**Key Performance Indicators**")
         kpis = calculate_sales_kpis(df_filtered)
 
         # Using 3 columns for better spacing for KPIs, allowing more space for text/numbers
         # Labels shortened for conciseness
         col1, col2, col3 = st.columns(3)
-        col4, col5, col6 = st.columns(3) # A new row of columns for the remaining KPIs
+        col4, col5, col6 = st.columns(3) 
 
         with col1:
             st.metric("Total Revenue", f"₹ {format_kpi_number(kpis['total_revenue'])}")
@@ -129,14 +129,15 @@ if not df.empty:
         with col4:
             st.metric("Total Discount", f"₹ {format_kpi_number(kpis['total_discount_amount'])}") # Shortened label
         with col5:
-            st.metric("Total Tax", f"₹ {format_kpi_number(kpis['total_tax_amount'])}") # Shortened label
-        with col6:
             st.metric("Total Shipping", f"₹ {format_kpi_number(kpis['total_shipping_cost'])}") # Shortened label
+        with col6:
+            st.metric("Total Tax", f"₹ {format_kpi_number(kpis['total_tax_amount'])}") # Shortened label
+       
 
         st.markdown("---")
 
         # --- Revenue and Orders Trend Over Time ---
-        st.subheader("Sales Trends Over Time")
+        st.write("#### Sales Trends Over Time")
         
         orders_for_trend = df_filtered.drop_duplicates(subset=['order_id']).copy()
 
@@ -164,7 +165,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Sales Breakdowns ---
-        st.subheader("Sales Breakdowns")
+        #st.subheader("Sales Breakdowns")
         
         col_breakdown1, col_breakdown2 = st.columns(2)
 
@@ -197,7 +198,7 @@ if not df.empty:
         
         # Sales by Fulfillment Status (NOW USING EXTRACTED STATUS)
         # Renamed the heading as well
-        st.write("### Revenue by Order Processing Status") # Updated heading name
+        #st.write("#### Revenue by Order Processing Status") # Updated heading name
         if 'extracted_status_from_tags' in df_filtered.columns:
             fulfillment_status_sales = df_filtered.drop_duplicates(subset=['order_id']).groupby('extracted_status_from_tags')['total_order_value'].sum().reset_index()
             if not fulfillment_status_sales.empty:
@@ -210,7 +211,7 @@ if not df.empty:
         
         st.markdown("---")
 
-        st.write("### Top Referring Sites by Revenue")
+        #st.write("#### Top Referring Sites by Revenue")
         if 'cleaned_referring_site' in df_filtered.columns: 
             referring_sites_data = df_filtered.drop_duplicates(subset=['order_id'])
             

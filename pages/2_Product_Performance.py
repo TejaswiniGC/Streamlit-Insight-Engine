@@ -5,7 +5,7 @@ from utils.plot_utils import plot_bar_chart, plot_time_series
 from utils.kpi_calculations import format_kpi_number
 import plotly.express as px
 
-st.set_page_config(layout="wide", page_title="Product Performance", page_icon="📦")
+st.set_page_config(layout="wide", page_title="Product Performance", page_icon=":material/yard:")
 
 css_file_path = "styles.css" 
 
@@ -16,7 +16,7 @@ try:
 except FileNotFoundError:
     st.error(f"Could not find {css_file_path}.")
 
-st.title("⭐ Product Performance Overview")
+st.header(":blue[:material/yard: Product Performance Overview]")
 
 st.markdown("""
 This section provides deep insights into your product catalog's performance,
@@ -27,7 +27,7 @@ highlighting top sellers, popular categories, and stock levels.
 df = load_ecommerce_data()
 
 # --- Sidebar Filters ---
-st.sidebar.header("Filter Data")
+st.sidebar.header(":blue[:material/yard: Apply Filters]")
 
 if not df.empty:
     valid_order_dates = df['order_date'].dropna()
@@ -78,7 +78,7 @@ if not df.empty:
         st.warning("No data available for the selected filters. Please adjust your date range or other filters.")
     else:
         # --- Product KPIs ---
-        st.subheader("Product Key Performance Indicators")
+        st.write("**Product Key Performance Indicators**")
         
         total_products_sold = df_filtered['quantity'].sum() if 'quantity' in df_filtered.columns else 0
         unique_orders_for_product = df_filtered.drop_duplicates(subset=['order_id'])
@@ -95,7 +95,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Top/Bottom Performing Products ---
-        st.subheader("Top Performing Products")
+        # st.subheader("Top Performing Products")
 
         # Top Products by Revenue
         if all(col in df_filtered.columns for col in ['product_name', 'line_item_revenue']): 
@@ -140,7 +140,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Product Performance by Compound Tags ---
-        st.subheader("Product Performance by Tags")
+        st.write("#### Product Performance by Tags")
 
         if 'product_tags_compound' in df_filtered.columns and not df_filtered['product_tags_compound'].dropna().empty:
             if 'line_item_revenue' in df_filtered.columns: 
@@ -181,13 +181,13 @@ if not df.empty:
                         st.info("No data for Quantity Sold by Product Tag Combination.")
 
                 # Product Compound Tag Revenue Mix (Donut Chart)
-                st.write("#### Product Tag Combination Revenue Mix")
+                # st.write("#### Product Tag Combination Revenue ")
                 if not compound_tag_revenue.empty: 
                     fig_donut_compound_tags = px.pie(
                         compound_tag_revenue,
                         values='line_item_revenue',
                         names='product_tags_compound',
-                        title='Percentage of Revenue by Product Tag Combination',
+                        title='Percentage of Revenue by Product Tag',
                         hole=0.4 
                     )
                     fig_donut_compound_tags.update_traces(textposition='inside', textinfo='percent+label')
@@ -202,8 +202,30 @@ if not df.empty:
         
         st.markdown("---")
 
+        if 'product_tags_compound' in df.columns and not df['product_tags_compound'].empty:
+            if 'quantity' in df.columns:
+                compound_tag_quantity = df.groupby('product_tags_compound')['quantity'].sum().reset_index()
+                if not compound_tag_quantity.empty:
+                    # st.subheader("Product Quantity Mix by Tag Combination")
+                    fig_donut_compound_tags_quantity = px.pie(
+                    compound_tag_quantity,
+                    values='quantity',  
+                    names='product_tags_compound',
+                    title='Percentage of Quantity sold by Product Tag',
+                    hole=0.4
+                    )
+                    fig_donut_compound_tags_quantity.update_traces(textposition='inside', textinfo='percent+label')
+                    st.plotly_chart(fig_donut_compound_tags_quantity, use_container_width=True)
+                else:
+                   st.info("No data to show Product Tag Combination Quantity Mix.")
+            else:
+                st.warning("Line_item_quantity column missing for product tag quantity combination breakdown.")
+        else:
+           st.info("Product compound tags column is missing or empty for tag analysis.")
+        st.markdown("---")
+
         # --- Product Performance by INDIVIDUAL Tags (Corrected Logic) ---
-        st.subheader("Product Performance by Individual Tags")
+        st.write("#### Product Performance by Individual Tags")
         st.info("Note: A product can have multiple tags, so the sum of revenue/quantity for individual tags may exceed total product revenue/quantity as a product's value is counted for each of its tags.")
 
         if 'product_tags_list' in df_filtered.columns and not df_filtered['product_tags_list'].dropna().empty and 'line_item_revenue' in df_filtered.columns:
@@ -220,7 +242,7 @@ if not df.empty:
 
                 # Revenue by Individual Product Tag
                 with col_individual_tag_perf1:
-                    st.write("### Revenue by Individual Product Tag")
+                    #st.write("### Revenue by Individual Product Tag")
                     individual_tag_revenue = individual_tag_df.groupby('individual_product_tag')['line_item_revenue'].sum().nlargest(15).reset_index() 
                     if not individual_tag_revenue.empty:
                         fig_individual_tag_revenue = plot_bar_chart(
@@ -238,7 +260,7 @@ if not df.empty:
                 
                 # Quantity Sold by Individual Product Tag
                 with col_individual_tag_perf2:
-                    st.write("### Quantity Sold by Individual Product Tag")
+                    # st.write("### Quantity Sold by Individual Product Tag")
                     individual_tag_quantity = individual_tag_df.groupby('individual_product_tag')['quantity'].sum().nlargest(15).reset_index() 
                     if not individual_tag_quantity.empty:
                         fig_individual_tag_quantity = plot_bar_chart(
@@ -261,7 +283,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Product Trends ---
-        st.subheader("Product Sales Trends")
+        st.write("#### Product Sales Trends")
         
         # Daily Product Revenue Trend
         if all(col in df_filtered.columns for col in ['order_date', 'line_item_revenue']):
@@ -297,7 +319,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Stock Level Analysis ---
-        st.subheader("Stock Level Insights")
+        st.write("#### Stock Level Insights")
         if all(col in df_filtered.columns for col in ['product_name', 'stock_available']):
 
             latest_stock = df_filtered.drop_duplicates(subset=['product_sku'], keep='last')[['product_name', 'product_sku', 'stock_available']].copy()
@@ -308,7 +330,7 @@ if not df.empty:
             low_stock_products = latest_stock[latest_stock['stock_available'] <= low_stock_threshold].sort_values('stock_available')
 
             if not low_stock_products.empty:
-                st.write(f"#### Products with Low Stock (<= {low_stock_threshold} units)")
+                st.write(f"**Products with Low Stock (<= {low_stock_threshold} units)**")
                 st.dataframe(low_stock_products, hide_index=True, use_container_width=True)
             else:
                 st.info(f"No products found with stock <= {low_stock_threshold} units in the filtered data.")

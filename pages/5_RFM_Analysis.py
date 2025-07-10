@@ -2,28 +2,27 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-# Assuming these are correctly set up and return DFs with necessary columns
-from utils.data_loader import load_ecommerce_data, load_customer_data, calculate_rfm 
-# Assuming format_kpi_number is available for general formatting if needed elsewhere
+
+from utils.data_loader import load_ecommerce_data, load_customer_data, calculate_rfm
+
 from utils.kpi_calculations import format_kpi_number 
 
 st.set_page_config(
     layout="wide", 
     page_title="RFM Analysis", 
-    page_icon="📈",
+    page_icon=":material/monitoring:",
     initial_sidebar_state="expanded" 
 )
 
 css_file_path = "styles.css" 
 
-# Check if the file exists before trying to read it
 try:
     with open(css_file_path) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 except FileNotFoundError:
     st.error(f"Could not find {css_file_path}.")
 
-st.title("📈 Customer RFM Analysis")
+st.header(":blue[:material/monitoring: Customer RFM Analysis]")
 
 st.markdown("""
 Understand your customers based on their **Recency** (how recently they purchased),
@@ -45,7 +44,7 @@ if df_customers_with_rfm.empty or 'RFM_Segment' not in df_customers_with_rfm.col
     st.stop() # Stop execution if data is not ready
 
 # --- Sidebar Filters ---
-st.sidebar.header("RFM Filters")
+st.sidebar.header(":blue[:material/monitoring: RFM Filters]")
 
 # Filter by RFM Segment
 unique_segments = ['All'] + sorted(df_customers_with_rfm['RFM_Segment'].dropna().unique().tolist())
@@ -57,7 +56,7 @@ if selected_segment != 'All':
 
 # --- Main Content ---
 
-st.subheader("RFM Segments Overview")
+st.write("#### RFM Segments Overview")
 
 if not df_filtered_rfm.empty:
     segment_counts = df_filtered_rfm['RFM_Segment'].value_counts().reset_index()
@@ -73,7 +72,7 @@ if not df_filtered_rfm.empty:
 
     st.markdown("---")
 
-    st.subheader("RFM Score Distributions")
+    st.write("#### RFM Score Distributions")
     col1, col2, col3 = st.columns(3)
 
     # Recency Distribution
@@ -99,7 +98,7 @@ if not df_filtered_rfm.empty:
 
     st.markdown("---")
 
-    st.subheader("Average RFM Values per Segment")
+    st.write("#### Average RFM Values per Segment")
     if selected_segment == 'All': # Only show this table if 'All' segments are selected
         segment_averages = df_customers_with_rfm.groupby('RFM_Segment').agg(
             Avg_Recency=('Recency', 'mean'), # 'Recency' should be raw days
@@ -115,7 +114,7 @@ if not df_filtered_rfm.empty:
 
     st.markdown("---")
 
-    st.subheader("Customers in Selected Segment")
+    st.write("#### Customers in Selected Segment")
 
     # --- ACTION: Add a "Proposed Action" column for business owners ---
     # This dictionary maps segments to simple proposed actions

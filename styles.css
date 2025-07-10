@@ -12,11 +12,10 @@ body {
     padding-right: 2rem;
     padding-left: 2rem;
     padding-bottom: 2rem;
-    max-width: 1200px; /* Max width for content */
+    max-width: 1000px; /* Max width for content */
 }
 
 /* Streamlit Sidebar Styling */
-/* Note: Class names like .css-xxxx can change with Streamlit updates. Inspect to verify. */
 .css-1d391kg { /* This typically targets the sidebar container */
     background-color: #ffffff; /* White sidebar */
     border-right: 1px solid #e0e0e0;
@@ -63,7 +62,7 @@ div[data-testid="stMetric"]:hover {
 div[data-testid="stMetricValue"] {
     font-size: 40px; /* Very large font for value */
     color: #34495e; /* Darker text for value */
-    font-weight: 800; /* Extra bold */
+    font-weight: 500; /* Extra bold */
     margin-bottom: 5px;
 }
 

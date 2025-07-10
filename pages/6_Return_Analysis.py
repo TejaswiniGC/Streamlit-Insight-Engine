@@ -6,7 +6,7 @@ from utils.data_loader import load_ecommerce_data, load_returned_products_data, 
 from utils.kpi_calculations import format_kpi_number
 from utils.plot_utils import plot_time_series, plot_bar_chart # Ensure these are imported
 
-st.set_page_config(layout="wide", page_title="Return Analysis", page_icon="📉")
+st.set_page_config(layout="wide", page_title="Return Analysis", page_icon=":material/trending_down:")
 
 css_file_path = "styles.css"
 
@@ -17,7 +17,7 @@ try:
 except FileNotFoundError:
     st.error(f"Could not find {css_file_path}.")
 
-st.title("📉 Product Return Analysis")
+st.subheader(":blue[:material/trending_down: Product Return Analysis]")
 
 st.markdown("""
 This dashboard provides insights into product returns. It aggregates sales and return data
@@ -53,7 +53,7 @@ df_returns['return_date'] = pd.to_datetime(df_returns['return_date'])
 
 
 # --- Sidebar Filters ---
-st.sidebar.header("Apply Filters")
+st.sidebar.header(":blue[:material/trending_down: Return Filters]")
 
 # Determine min/max dates from ALL loaded data (before any filtering)
 all_dates = []
@@ -153,7 +153,7 @@ df_combined['estimated_unit_price'] = df_combined.apply(
 df_combined['estimated_returned_value'] = df_combined['total_returned_quantity'] * df_combined['estimated_unit_price']
 
 
-st.header("Overall Return Metrics")
+st.write("**KPI Metrics**")
 total_sold = df_combined['total_sold_quantity'].sum()
 total_returned = df_combined['total_returned_quantity'].sum()
 total_sales_value = df_combined['total_sales_revenue'].sum()
@@ -170,11 +170,11 @@ with col3:
     # Ensure percentages are formatted correctly by format_kpi_number
     st.metric(label="Overall Return Rate", value=f"{format_kpi_number(overall_return_rate)}%")
 with col4:
-    st.metric(label="Estimated Total Value of Returns", value=f"₹{format_kpi_number(total_estimated_returned_value)}")
+    st.metric(label="Total Value of Returns", value=f"₹{format_kpi_number(total_estimated_returned_value)}")
 
 st.markdown("---")
 
-st.header("Products by Return Quantity and Rate")
+st.write("#### Products by Return Quantity and Rate")
 df_product_returns = df_combined.groupby('product_name').agg(
     total_returned_quantity=('total_returned_quantity', 'sum'),
     total_sold_quantity=('total_sold_quantity', 'sum'),
@@ -245,7 +245,7 @@ with col_top_rate:
 
 st.markdown("---")
 
-st.header("Return Trends Over Time")
+st.write("#### Return Trends Over Time")
 df_daily_returns = df_combined.groupby('date').agg(
     total_returned_quantity=('total_returned_quantity', 'sum'),
     total_sold_quantity=('total_sold_quantity', 'sum'),
@@ -285,7 +285,7 @@ else:
 
 st.markdown("---")
 
-st.header("Return Comments Analysis")
+st.write("#### Return Comments Analysis")
 if 'return_comments' in df_returns_filtered.columns and not df_returns_filtered.empty:
 
     comments_series = df_returns_filtered['return_comments'].dropna().astype(str)
