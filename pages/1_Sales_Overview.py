@@ -40,7 +40,7 @@ if not df.empty:
     # Determine available min/max dates
     valid_order_dates = df['order_date'].dropna()
     if not valid_order_dates.empty:
-        min_date_available = valid_order_dates.min().date()
+        min_date_available = date(2025, 7, 13)
         max_date_available = valid_order_dates.max().date()
     else:
         # Fallback if no valid dates are found
@@ -107,6 +107,12 @@ if not df.empty:
         if selected_referring_site != 'All':
             df_filtered = df_filtered[df_filtered['cleaned_referring_site'] == selected_referring_site]
 
+    if 'discount_applied' in df_filtered.columns and not df_filtered['discount_applied'].dropna().empty:
+        unique_discount_codes = ['All'] + sorted(df_filtered['discount_applied'].dropna().unique().tolist())
+        selected_discount_codes = st.sidebar.selectbox("Discount Code", unique_discount_codes)
+        if selected_discount_codes != "All":
+            df_filtered = df_filtered[df_filtered['discount_applied'] == selected_discount_codes]
+
     # --- Main Content Area ---
     if df_filtered.empty:
         st.warning("No data available for the selected filters. Please adjust your date range or other filters.")
@@ -115,8 +121,6 @@ if not df.empty:
         st.write("**Key Performance Indicators**")
         kpis = calculate_sales_kpis(df_filtered)
 
-        # Using 3 columns for better spacing for KPIs, allowing more space for text/numbers
-        # Labels shortened for conciseness
         col1, col2, col3 = st.columns(3)
         col4, col5, col6 = st.columns(3) 
 
@@ -183,32 +187,16 @@ if not df.empty:
         
         # Orders by Payment Status
         with col_breakdown2:
-            if 'Payment_status' in df_filtered.columns:
-                payment_status_orders = df_filtered.drop_duplicates(subset=['order_id']).groupby('Payment_status')['order_id'].nunique().reset_index()
-                payment_status_orders.columns = ['Payment Status', 'Number of Orders']
-                if not payment_status_orders.empty:
-                    fig_payment_status = plot_bar_chart(payment_status_orders, 'Payment Status', 'Number of Orders', 'Orders by Payment Status', 'Payment Status', 'Number of Orders')
-                    st.plotly_chart(fig_payment_status, use_container_width=True)
+            if 'order_status_from_tag' in df_filtered.columns:
+                fulfillment_status_sales = df_filtered.drop_duplicates(subset=['order_id']).groupby('order_status_from_tag')['total_order_value'].sum().reset_index()
+                if not fulfillment_status_sales.empty:
+                    fig_fulfillment = plot_bar_chart(fulfillment_status_sales, 'order_status_from_tag', 'total_order_value', 'Revenue by Order Status', 'Processing Status', 'Revenue (₹)')
+                    st.plotly_chart(fig_fulfillment, use_container_width=True)
                 else:
-                    st.info("No data for Payment Status breakdown.")
+                    st.info("No data for Extracted Fulfillment Status breakdown.")
             else:
-                st.warning("Column 'Payment_status' not found for breakdown. Please verify its presence and spelling.")
+                st.warning("Column 'order_status_from_tag' not found. Please check `utils/data_loader.py` for status extraction logic.")
 
-        st.markdown("---")
-        
-        # Sales by Fulfillment Status (NOW USING EXTRACTED STATUS)
-        # Renamed the heading as well
-        #st.write("#### Revenue by Order Processing Status") # Updated heading name
-        if 'extracted_status_from_tags' in df_filtered.columns:
-            fulfillment_status_sales = df_filtered.drop_duplicates(subset=['order_id']).groupby('extracted_status_from_tags')['total_order_value'].sum().reset_index()
-            if not fulfillment_status_sales.empty:
-                fig_fulfillment = plot_bar_chart(fulfillment_status_sales, 'extracted_status_from_tags', 'total_order_value', 'Revenue by Order Status', 'Processing Status', 'Revenue (₹)')
-                st.plotly_chart(fig_fulfillment, use_container_width=True)
-            else:
-                st.info("No data for Extracted Fulfillment Status breakdown.")
-        else:
-            st.warning("Column 'extracted_status_from_tags' not found. Please check `utils/data_loader.py` for status extraction logic.")
-        
         st.markdown("---")
 
         #st.write("#### Top Referring Sites by Revenue")
@@ -225,6 +213,60 @@ if not df.empty:
         else:
             st.warning("Column 'cleaned_referring_site' not found. Please check `utils/data_loader.py` for referring site cleaning logic.")
 
+        #st.write("#### Discount Codes Usage and Total Discount Amount")
+        discount_data = df_filtered[
+            (df_filtered['discount_applied'].notna()) &
+            (df_filtered['discount_applied'] != '') &
+            (df_filtered['discount_applied'].apply(lambda x: isinstance(x, str)))
+        ].copy()
+
+        if not discount_data.empty:
+            # Create a unique orders dataframe to accurately sum order-level discount amounts
+            # Ensure 'order_id', 'discount_applied', and 'discount_amount' are present
+            unique_discount_orders = discount_data.drop_duplicates(subset=['order_id']).copy()
+
+            # Group by discount_applied (which we're assuming is the code) and sum the discount_amount
+            discount_summary = unique_discount_orders.groupby('discount_applied').agg(
+                total_discount_amount=('discount_amount', 'sum'),
+                number_of_uses=('order_id', 'nunique') # Count unique orders that used this discount
+            ).reset_index()
+
+            # Sort for better visualization (e.g., by total discount amount)
+            discount_summary = discount_summary.sort_values('total_discount_amount', ascending=False)
+
+            if not discount_summary.empty:
+                fig_discount_codes = px.bar(
+                    discount_summary.head(10), # Display top 10 as a bar chart
+                    x='discount_applied',
+                    y='number_of_uses',
+                    color='total_discount_amount', # Color by total discount amount
+                    title='Top 10 Discount Codes by Number of Orders Used',
+                    labels={'discount_applied': 'Discount Code',
+                            'number_of_uses': 'Number of Orders Used',
+                            'total_discount_amount': 'Total Discount Amount (₹)'},
+                    hover_data={
+                        'discount_applied': True,
+                        'number_of_uses': True,
+                        'total_discount_amount': ':.2f' # Format total_discount_amount on hover
+                    },
+                )
+                fig_discount_codes.update_layout(xaxis_title="Discount Code", yaxis_title="Number of Orders Used", coloraxis_showscale=False,)
+                st.plotly_chart(fig_discount_codes, use_container_width=True)
+
+                st.write("**All Discount Codes**")
+                # Display all as a table (scrollable)
+                st.dataframe(
+                    discount_summary.style.format({
+                        'total_discount_amount': '₹ {:.2f}'
+                    }),
+                    use_container_width=True,
+                    height=300, # Set a fixed height to make it scrollable
+                    hide_index=True
+                )
+            else:
+                st.info("No discount code data to display for the selected filters.")
+        else:
+            st.info("No discount codes found or applied in the filtered data.")
 
 else:
     st.error("Cannot load sales data. Please check the `utils/data_loader.py` file for configuration and potential BigQuery connection issues.")

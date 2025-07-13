@@ -63,10 +63,10 @@ if 'return_date' in df_returns.columns and not df_returns['return_date'].dropna(
     all_dates.extend(df_returns['return_date'].dt.date.tolist())
 
 if all_dates:
-    min_date_available = min(all_dates)
+    min_date_available = date(2025, 7, 13)
     max_date_available = max(all_dates)
 else:
-    min_date_available = date(2020, 1, 1) # Default if no dates found
+    min_date_available = date(2020, 1, 1) 
     max_date_available = date.today()
 
 # Date Range Selection (single box)

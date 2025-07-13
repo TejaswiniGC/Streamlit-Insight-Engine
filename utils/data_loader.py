@@ -2,16 +2,17 @@ import streamlit as st
 import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
-import os, re, gspread, json 
+import os, re, gspread, json
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection 
-from tldextract import extract 
+from streamlit_gsheets import GSheetsConnection
+from tldextract import extract
 
 # --- Configuration Constants ---
 PROJECT_ID = "second-impact-388206"
 DATASET_ID = "dashboard_data"
-TABLE_ID = "merged_orders"
+ORDERS_TABLE_ID = "orders"
+PRODUCTS_TABLE_ID = "products"
 CUSTOMER_TABLE_ID = "customers"
 
 RETURNS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1NL2TWlA2nyz04ZSy5U3S8c_tHHr1iCzD5NOQH6SKDc4/edit"
@@ -19,7 +20,7 @@ RETURNS_WORKSHEET_NAME = "Sheet1"
 
 # --- Cached Client Initializations ---
 
-@st.cache_resource(ttl=3600) 
+@st.cache_resource(ttl=3600)
 def get_bigquery_client_cached():
     try:
         creds_bq = st.secrets["connections.bigquery"]
@@ -27,10 +28,10 @@ def get_bigquery_client_cached():
         return client
     except Exception as e:
         st.error(f"Failed to initialize BigQuery client: {e}")
-        st.stop() 
-        return None 
+        st.stop()
+        return None
 
-@st.cache_resource(ttl=3600) 
+@st.cache_resource(ttl=3600)
 def get_gsheets_client_cached():
     try:
         creds_gs = st.secrets["connections.gsheets_returns"]
@@ -38,19 +39,20 @@ def get_gsheets_client_cached():
         return gc
     except Exception as e:
         st.error(f"Failed to initialize Google Sheets client: {e}")
-        st.stop() 
-        return None 
+        st.stop()
+        return None
 
-# --- Data Loading Functions ---
+# --- Data Loading Functions (Individual Tables) ---
+
 @st.cache_data(ttl=3600, show_spinner="Fetching returned products data from Google Sheet...")
 def load_returned_products_data():
     """
     Fetches the returned products data from a Google Sheet using direct gspread.
     Caches the result.
     """
-    df_returns = pd.DataFrame() 
+    df_returns = pd.DataFrame()
     try:
-        gc = get_gsheets_client_cached() 
+        gc = get_gsheets_client_cached()
         if gc is None:
             st.warning("Google Sheets client not available. Cannot load returned products data.")
             return pd.DataFrame()
@@ -63,7 +65,7 @@ def load_returned_products_data():
             df_returns = pd.DataFrame(data[1:], columns=data[0])
         else:
             st.warning("Google Sheet is empty or contains no data.")
-            return pd.DataFrame() 
+            return pd.DataFrame()
 
         required_renames = {
             'Date': 'return_date',
@@ -87,17 +89,15 @@ def load_returned_products_data():
         else:
             st.warning("Column 'returned_quantity' (original 'Quantity') not found after renaming. Quantity conversion skipped.")
 
-        # --- END OF UPDATED RENAMING CODE ---
-
         final_required_columns = ['return_date', 'product_name', 'returned_quantity', 'return_comments']
         missing_final_columns = [col for col in final_required_columns if col not in df_returns.columns]
 
         if missing_final_columns:
-            st.error(f"After processing, required columns are still missing: {missing_final_columns}. Please verify your Google Sheet data and renaming logic.")
+            st.error(f"❌ After processing, required columns are still missing: {missing_final_columns}. Please verify your Google Sheet data and renaming logic.")
             return pd.DataFrame()
 
     except Exception as e:
-        st.error(f"Error loading returned products data from Google Sheet: {e}")
+        st.error(f"❌ Error loading returned products data from Google Sheet: {e}")
         st.warning("Please ensure the RETURNS_SHEET_URL and RETURNS_WORKSHEET_NAME are valid and the sheet is shared with the service account email.")
         st.info("Returned products data could not be loaded. Please check Google Sheet connection and sheet configuration (.streamlit/secrets.toml and sheet sharing).")
         df_returns = pd.DataFrame()
@@ -107,12 +107,12 @@ def load_returned_products_data():
 @st.cache_data(ttl=3600, show_spinner="Fetching customer data from BigQuery...")
 def load_customer_data():
     """
-    Fetches the customers_data table from Google BigQuery.
+    Fetches the customers table from Google BigQuery with new columns.
     Caches the result for 1 hour.
     """
     try:
-        client = get_bigquery_client_cached() 
-        if client is None: 
+        client = get_bigquery_client_cached()
+        if client is None:
             st.warning("BigQuery client not available. Cannot load customer data.")
             return pd.DataFrame()
 
@@ -120,27 +120,19 @@ def load_customer_data():
         query = f"SELECT * FROM `{table_ref}`"
         df_customers = client.query(query).to_dataframe()
 
-        # Convert relevant columns based on provided schema
-        date_cols_cust = ['signup_date', 'updated_at'] 
+        date_cols_cust = ['signup_date', 'updated_at']
         for col in date_cols_cust:
             if col in df_customers.columns:
                 df_customers[col] = pd.to_datetime(df_customers[col], errors='coerce')
-        
-        numeric_cols_cust = ['total_spent', 'orders_count']
+
+        numeric_cols_cust = ['total_spent', 'orders_count', 'aov']
         for col in numeric_cols_cust:
             if col in df_customers.columns:
                 df_customers[col] = pd.to_numeric(df_customers[col], errors='coerce')
 
-        # Calculate AOV for customers table (lifetime AOV)
-        if 'total_spent' in df_customers.columns and 'orders_count' in df_customers.columns:
-            df_customers['aov'] = df_customers.apply(
-                lambda row: row['total_spent'] / row['orders_count'] if pd.notna(row['orders_count']) and row['orders_count'] > 0 else 0,
-                axis=1
-            )
-        else:
-            df_customers['aov'] = 0
+        if 'marketing_opt_in' in df_customers.columns:
+            df_customers['marketing_opt_in'] = df_customers['marketing_opt_in'].astype(bool)
 
-        # --- Impute customer_type based on orders_count, handling NaN/0 explicitly ---
         if 'orders_count' in df_customers.columns:
             df_customers['imputed_customer_type'] = df_customers['orders_count'].apply(
                 lambda x: 'Returning Customer' if pd.notna(x) and x > 1 else 'New/One-Time Customer'
@@ -155,268 +147,231 @@ def load_customer_data():
         st.info("Also, verify your Google Cloud authentication (via secrets) and BigQuery permissions for the specified table.")
         return pd.DataFrame()
 
-@st.cache_data(ttl=3600, show_spinner="Fetching fresh order data from BigQuery...")
+@st.cache_data(ttl=3600, show_spinner="Fetching and merging orders and products data from BigQuery...")
 def load_ecommerce_data():
     """
-    Fetches the merged_orderdata table from Google BigQuery and performs initial type conversions.
-    Caches the result for 1 hour.
+    Fetches orders and products data, unnest arrays, and merges them to create
+    a line-item level DataFrame. This version handles product_tags and product_sku
+    as repeated fields in the products table by unnesting them.
     """
     try:
-        client = get_bigquery_client_cached() # Get the cached BigQuery client
-        if client is None: # If client initialization failed
-            st.warning("BigQuery client not available. Cannot load order data.")
+        client = get_bigquery_client_cached()
+        if client is None:
+            st.warning("BigQuery client not available. Cannot load order and product data.")
             return pd.DataFrame()
 
-        table_ref = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
-        query = f"SELECT * FROM `{table_ref}`"
+        query = f"""
+        SELECT
+            o.order_date,
+            o.updated_at AS order_updated_at,
+            o.order_id,
+            o.order_number,
+            o.customer_id,
+            o.email AS customer_email,
+            unnested_orders.product_sku AS order_product_sku, -- Renamed to avoid confusion
+            unnested_orders.product_id AS order_product_id,   -- Renamed to avoid confusion
+            unnested_orders.quantity,
+            o.cross_product_linkage,
+            o.total_order_value,
+            o.discount_applied,
+            o.discount_amount,
+            o.tax_amount,
+            o.payment_status,
+            o.fulfillment_status,
+            o.shipping_method,
+            o.shipping_cost,
+            o.referring_site,
+            o.return_refund_status,
+            o.order_channel,
+            o.customer_type,
+            o.order_status_from_tag,
+            o.geography_country,
+            o.geography_state,
+            o.geography_city,
+            o.geography_postal_code,
+            o.shipping_address_latitude,
+            o.shipping_address_longitude,
+            p.product_name,
+            p.product_status,
+            p.product_type,
+            p.price,
+            p.product_created_at,
+            p.updated_at AS product_updated_at,
+            p.stock_available,
+            p.individual_product_tag,
+            p.product_sku_single AS product_sku, -- Use the unnested product_sku for the final result
+            p.shipping_weight
+        FROM
+            `{PROJECT_ID}.{DATASET_ID}.{ORDERS_TABLE_ID}` AS o,
+            UNNEST(ARRAY(SELECT AS STRUCT sku AS product_sku, id AS product_id, quantity AS quantity FROM UNNEST(o.product_sku) AS sku WITH OFFSET sku_pos JOIN UNNEST(o.product_ids) AS id WITH OFFSET id_pos ON sku_pos = id_pos JOIN UNNEST(o.quantities) AS quantity WITH OFFSET qty_pos ON sku_pos = qty_pos)) AS unnested_orders
+        LEFT JOIN
+            (
+                SELECT
+                    product_id,
+                    product_sku_single, -- The unnested single SKU
+                    product_name,
+                    product_status,
+                    product_type,
+                    price,
+                    product_created_at,
+                    updated_at,
+                    stock_available,
+                    individual_product_tag,
+                    shipping_weight
+                FROM
+                    `{PROJECT_ID}.{DATASET_ID}.{PRODUCTS_TABLE_ID}`,
+                    UNNEST(product_tags) AS individual_product_tag, -- Unnesting the tags
+                    UNNEST(product_sku) AS product_sku_single -- UNNESTING PRODUCT_SKU HERE
+            ) AS p
+        ON
+            unnested_orders.product_sku = p.product_sku_single -- JOIN on the unnested SKU
+        """
+
         df = client.query(query).to_dataframe()
 
-        # Convert date columns to datetime objects for proper plotting and filtering
-        date_cols_order = ['order_date', 'updated_at', 'cancelled_at', 'product_created_at']
-        for col in date_cols_order:
+        # --- Type Conversions ---
+        date_cols = [
+            'order_date', 'order_updated_at', 'product_created_at', 'product_updated_at'
+        ]
+        for col in date_cols:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
 
-        # Convert numeric columns
-        numeric_cols_order = [
-            'order_number', 'quantity', 'total_order_value', 'discount_amount', 
-            'tax_amount', 'shipping_cost', 'shipping_address_latitude', 
+        numeric_cols = [
+            'order_number', 'quantity', 'total_order_value', 'discount_amount',
+            'tax_amount', 'shipping_cost', 'shipping_address_latitude',
             'shipping_address_longitude', 'price', 'stock_available', 'shipping_weight'
         ]
-        for col in numeric_cols_order:
+        for col in numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # --- Calculate line_item_revenue EARLY ---
+        # --- Feature Engineering ---
         if 'quantity' in df.columns and 'price' in df.columns:
             df['line_item_revenue'] = df['quantity'] * df['price']
         else:
-            df['line_item_revenue'] = df['total_order_value'] 
-            st.warning("Price or quantity columns not found in order data. 'line_item_revenue' is estimated from 'total_order_value' which might be less accurate for per-product analysis.")
+            df['line_item_revenue'] = 0
+            st.warning("Could not calculate 'line_item_revenue' from 'quantity' and 'price'. Check BigQuery unnesting.")
 
-        # --- Extract Status from order_tags ---
-        if 'order_tags' in df.columns:
-            df['extracted_status_from_tags'] = df['order_tags'].apply(extract_status_from_tags)
-            df['extracted_status_from_tags'] = df['extracted_status_from_tags'].fillna('Other/Unknown')
+        if 'order_status_from_tag' in df.columns:
+            df['extracted_status'] = df['order_status_from_tag'].fillna('Other/Unknown')
         else:
-            df['extracted_status_from_tags'] = 'N/A (Tags Missing)'
+            df['extracted_status'] = 'N/A (Status Tag Missing)'
 
-        # --- Clean Referring Site URLs ---
         if 'referring_site' in df.columns:
             df['cleaned_referring_site'] = df['referring_site'].apply(advanced_clean_referring_site)
         else:
             df['cleaned_referring_site'] = 'N/A (Site Data Missing)'
 
-        # --- Process Product Tags ---
-        if 'product_tags' in df.columns:
-            df[['product_tags_list', 'product_tags_compound']] = df['product_tags'].apply(
-                lambda x: pd.Series(process_product_tags(x))
-            )
-            # IMPORTANT: Convert lists to tuples or strings to make them hashable for caching
-            df['product_tags_list'] = df['product_tags_list'].apply(lambda x: tuple(x) if isinstance(x, list) else ())
+        if 'individual_product_tag' in df.columns:
+            df['product_tags_list'] = df['individual_product_tag'].apply(lambda x: [x] if pd.notna(x) and x else [])
+            df['product_tags_compound'] = df['individual_product_tag'].fillna('Unknown Tag')
         else:
-            df['product_tags_list'] = [()] * len(df) 
+            df['product_tags_list'] = [()] * len(df)
             df['product_tags_compound'] = "N/A (Tags Missing)"
+
+        if 'customer_type' in df.columns:
+            df['imputed_customer_type'] = df['customer_type'].fillna('Unknown')
+        else:
+            df['imputed_customer_type'] = 'N/A (Customer Type Missing)'
 
         return df
 
     except Exception as e:
-        st.error(f"Error loading order data from BigQuery: {e}")
-        st.warning("Please ensure your `PROJECT_ID`, `DATASET_ID`, and `TABLE_ID` in `utils/data_loader.py` are correct.")
-        st.info("Also, verify your Google Cloud authentication (via secrets) and BigQuery permissions for the specified table.")
+        st.error(f"Error loading and merging data from BigQuery: {e}")
+        st.warning(f"Please ensure `ORDERS_TABLE_ID` ('{ORDERS_TABLE_ID}') and `PRODUCTS_TABLE_ID` ('{PRODUCTS_TABLE_ID}') are correct and accessible.")
+        st.info("Verify your BigQuery authentication, table schemas, and permissions.")
         return pd.DataFrame()
 
-# --- Helper Functions (No changes needed for caching, as they process dataframes) ---
-
-def extract_status_from_tags(tags_string):
-    """
-    Extracts the status (e.g., 'processing', 'fulfilled') from a string
-    like "status:processing, other_tag".
-    """
-    if pd.isna(tags_string) or not isinstance(tags_string, str):
-        return None
-
-    match = re.search(r'status:([a-zA-Z0-9_]+)', tags_string)
-    if match:
-        return match.group(1)
-    return None
+# --- Helper Functions (Remains the same) ---
 
 def advanced_clean_referring_site(url):
-    """
-    Cleans a referring site URL to extract a recognizable source name using
-    a combination of specific rules and tldextract for robust domain parsing.
-    """
     if pd.isna(url) or not isinstance(url, str) or not url.strip():
         return "Direct/Unknown"
-
-    url_lower = url.lower() # Work with lowercase for easier matching
-
-    # --- Step 1: Specific App Schemes and Non-Standard Prefixes ---
+    url_lower = url.lower()
     if url_lower.startswith("android-app://"):
-        if "com.google.android.gm" in url_lower:
-            return "Google Mail App"
-        elif "com.google.android.googlequicksearchbox" in url_lower:
-            return "Google Search App"
-        elif "com.facebook.katana" in url_lower:
-            return "Facebook App"
-        elif "com.instagram.android" in url_lower:
-            return "Instagram App"
+        if "com.google.android.gm" in url_lower: return "Google Mail App"
+        elif "com.google.android.googlequicksearchbox" in url_lower: return "Google Search App"
+        elif "com.facebook.katana" in url_lower: return "Facebook App"
+        elif "com.instagram.android" in url_lower: return "Instagram App"
         return "Other Mobile App"
-    
-    # Remove leading numbers/non-protocol characters if present (e.g., '99https://')
-    url_lower = re.sub(r'^\d+', '', url_lower) 
-    
-    # Prepend a dummy protocol if missing, to help urlparse and tldextract
+    url_lower = re.sub(r'^\d+', '', url_lower)
     if not (url_lower.startswith("http://") or url_lower.startswith("https://")):
-        url_lower = "http://" + url_lower 
-
+        url_lower = "http://" + url_lower
     try:
-        # --- Step 2: Specific Keyword/Domain Mappings (Prioritize these) ---
         if "theaffordableorganicstore.com" in url_lower or "affordableorganicstore.company.site" in url_lower:
-            # Check for internal paths that might be clearer as "Internal Navigation"
-            if "/apps/track" in url_lower or "/cart" in url_lower or "/my-account" in url_lower or "/shop/" in url_lower or "/search" in url_lower or "/collections/" in url_lower or "/products/" in url_lower or "/home/cart-taos/" in url_lower or "/pages/" in url_lower:
-                return "The Affordable Organic Store (Internal)"
-            
-            # Handle Google Ads/Facebook Ads campaign URLs specifically for your site
-            if "utm_source=facebook" in url_lower or "fbclid=" in url_lower or "gad_source=1" in url_lower or "campaign_id=" in url_lower:
-                return "The Affordable Organic Store (Paid Ads)"
-            
-            return "The Affordable Organic Store" # Standardized main store name
-
-        # Social Media
-        if "instagram.com" in url_lower: # Catches l.instagram.com, instagram.com, etc.
-            return "Instagram"
-        if "facebook.com" in url_lower: # Catches l.facebook.com, m.facebook.com, lm.facebook.com, facebook.com, etc.
-            return "Facebook"
-        if "t.co" in url_lower: 
-            return "Twitter"
-        if "youtube.com" in url_lower or "youtu.be" in url_lower:
-            return "YouTube"
-        if "linkedin.com" in url_lower:
-            return "LinkedIn"
-        if "reddit.com" in url_lower:
-            return "Reddit"
-        if "meta.com" in url_lower:
-            return "Meta"
-
-        # Search Engines
+            if "/apps/track" in url_lower or "/cart" in url_lower or "/my-account" in url_lower or "/shop/" in url_lower or "/search" in url_lower or "/collections/" in url_lower or "/products/" in url_lower or "/home/cart-taos/" in url_lower or "/pages/" in url_lower: return "The Affordable Organic Store (Internal)"
+            if "utm_source=facebook" in url_lower or "fbclid=" in url_lower or "gad_source=1" in url_lower or "campaign_id=" in url_lower: return "The Affordable Organic Store (Paid Ads)"
+            return "The Affordable Organic Store"
+        if "instagram.com" in url_lower: return "Instagram"
+        if "facebook.com" in url_lower: return "Facebook"
+        if "t.co" in url_lower: return "Twitter"
+        if "youtube.com" in url_lower or "youtu.be" in url_lower: return "YouTube"
+        if "linkedin.com" in url_lower: return "LinkedIn"
+        if "reddit.com" in url_lower: return "Reddit"
+        if "meta.com" in url_lower: return "Meta"
         if "google.com" in url_lower:
-            # Check if it's explicitly an ads domain or syndication
-            if "googleads.g.doubleclick.net" in url_lower or "googlesyndication.com" in url_lower:
-                return "Google Ads"
-            
-            # Check for organic search if relevant query parameters exist (e.g., 'q' or 's')
+            if "googleads.g.doubleclick.net" in url_lower or "googlesyndication.com" in url_lower: return "Google Ads"
             query_params = parse_qs(urlparse(url_lower).query)
-            if 'q' in query_params or 's' in query_params:
-                return "Google Search"
-            
-            # If it's a direct Google URL without specific search/ads indicators
+            if 'q' in query_params or 's' in query_params: return "Google Search"
             return "Google Direct"
-        
-        if "brave.com" in url_lower:
-            return "Brave"
-        if "bing.com" in url_lower:
-            return "Bing"
-        if "ecosia.org" in url_lower:
-            return "Ecosia"
-
-        # Other Known Platforms/Services
-        if "chatgpt.com" in url_lower:
-            return "ChatGPT"
-        if "shopify.com" in url_lower:
-            return "Shopify Platform"
-        if "webinvoke.paytmpayments.com" in url_lower:
-            return "Webinvoke" 
-        if "l.wl.co" in url_lower:
-            return "WL Link"
-        if "links.rediff.com" in url_lower:
-            return "Rediff Links"
-        if "idevaffiliate.com" in url_lower:
-            return "iDevAffiliate"
-
-        # --- Step 3: Use tldextract for robust generic domain extraction ---
+        if "brave.com" in url_lower: return "Brave"
+        if "bing.com" in url_lower: return "Bing"
+        if "ecosia.org" in url_lower: return "Ecosia"
+        if "chatgpt.com" in url_lower: return "ChatGPT"
+        if "shopify.com" in url_lower: return "Shopify Platform"
+        if "webinvoke.paytmpayments.com" in url_lower: return "Webinvoke"
+        if "l.wl.co" in url_lower: return "WL Link"
+        if "links.rediff.com" in url_lower: return "Rediff Links"
+        if "idevaffiliate.com" in url_lower: return "iDevAffiliate"
         extracted = extract(url_lower)
-        
-        # Prioritize the domain if it's available from tldextract
-        if extracted.domain:
-            return extracted.domain.replace('-', ' ').title()
-        
-        # --- Fallback for URLs not handled by tldextract (e.g., malformed, internal IDs) ---
+        if extracted.domain: return extracted.domain.replace('-', ' ').title()
         parsed_url = urlparse(url_lower)
         domain = parsed_url.netloc
-
-        if not domain: # If urlparse couldn't get a domain or it's just malformed text
-            if re.match(r'^[a-f0-9]{32}$', url_lower):
-                return "Internal ID/Tracker"
+        if not domain:
+            if re.match(r'^[a-f0-9]{32}$', url_lower): return "Internal ID/Tracker"
             return "Other (No Domain)"
-        
-        domain = re.sub(r'^(www|m|l)\.', '', domain) 
+        domain = re.sub(r'^(www|m|l)\.', '', domain)
         parts = domain.split('.')
-        if len(parts) >= 2:
-            return parts[-2].replace('-', ' ').title() 
-        
+        if len(parts) >= 2: return parts[-2].replace('-', ' ').title()
         return "Other (Generic Domain Fallback)"
-
     except Exception as e:
-        # print(f"Error cleaning URL '{url}': {e}") # Uncomment for debugging
         return "Other (Error)"
 
-def process_product_tags(tags_string):
-    """
-    Cleans, normalizes, and returns a sorted list of individual tags
-    and a compound hyphen-separated string of tags.
-    """
-    if pd.isna(tags_string) or not isinstance(tags_string, str) or not tags_string.strip():
-        return [], "Unknown Tag"
-
-    cleaned_tags = [tag.strip().lower() for tag in tags_string.split(',') if tag.strip()]
-    
-    cleaned_tags.sort()
-
-    compound_tag = "-".join(cleaned_tags) if cleaned_tags else "Unknown Tag"
-
-    return cleaned_tags, compound_tag
-
 def get_filtered_data(df, start_date, end_date):
-    """Filters the DataFrame by order_date within the given range."""
     if not df.empty and 'order_date' in df.columns:
         df_filtered = df[(df['order_date'].dt.date >= start_date) & (df['order_date'].dt.date <= end_date)]
         return df_filtered
     return pd.DataFrame()
 
 @st.cache_data(ttl=3600, show_spinner="Calculating RFM scores...")
-def calculate_rfm(df_orders: pd.DataFrame, df_customers_master: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculates RFM scores (Recency, Frequency, Monetary) for each customer
-    based on order data and merges them into the customer master data.
-    """
-    # Ensure essential columns exist for RFM calculation
-    required_order_cols = ['customer_id', 'order_date', 'total_order_value', 'order_id']
-    if not all(col in df_orders.columns for col in required_order_cols):
+def calculate_rfm(df_orders_line_item: pd.DataFrame, df_customers_master: pd.DataFrame) -> pd.DataFrame:
+    required_order_cols = ['customer_id', 'order_date', 'order_id', 'total_order_value']
+    if not all(col in df_orders_line_item.columns for col in required_order_cols):
         st.warning(f"Order data is missing one or more required columns for RFM calculation: {required_order_cols}. Skipping RFM calculation.")
-        return df_customers_master # Return original if essential columns are missing
-
-    # Drop NaNs for RFM calculation relevant columns
-    df_orders_rfm = df_orders.dropna(subset=required_order_cols).copy()
-    if df_orders_rfm.empty:
-        st.warning("No valid order data after dropping NaNs for RFM calculation. Returning original customer master.")
         return df_customers_master
 
-    # Determine the analysis date: one day after the latest order in the dataset
-    max_order_date = df_orders_rfm['order_date'].max()
-    analysis_date = max_order_date + pd.Timedelta(days=1) if pd.notna(max_order_date) else pd.Timestamp.now() # Use Timestamp for consistency
+    df_orders_rfm_agg = df_orders_line_item.groupby(['customer_id', 'order_id']).agg(
+        order_date=('order_date', 'first'),
+        total_order_value=('total_order_value', 'first')
+    ).reset_index()
 
-    # Calculate RFM metrics
+    df_orders_rfm = df_orders_rfm_agg.dropna(subset=['customer_id', 'order_date', 'total_order_value']).copy()
+    if df_orders_rfm.empty:
+        st.warning("No valid aggregated order data after dropping NaNs for RFM calculation. Returning original customer master.")
+        return df_customers_master
+
+    max_order_date = df_orders_rfm['order_date'].max()
+    analysis_date = max_order_date + pd.Timedelta(days=1) if pd.notna(max_order_date) else pd.Timestamp.now()
+
     rfm_df = df_orders_rfm.groupby('customer_id').agg(
         Recency=('order_date', lambda date: (analysis_date - date.max()).days),
-        Frequency=('order_id', 'nunique'), # Count unique orders
-        Monetary=('total_order_value', 'sum') # Sum of total order value
+        Frequency=('order_id', 'nunique'),
+        Monetary=('total_order_value', 'sum')
     ).reset_index()
 
     rfm_df['R_Score'] = rfm_df['Recency'].rank(method='first', ascending=False).astype(int)
-
     rfm_df['F_Score'] = rfm_df['Frequency'].rank(method='first', ascending=True).astype(int)
-
     rfm_df['M_Score'] = rfm_df['Monetary'].rank(method='first', ascending=True).astype(int)
 
     rfm_df['R_Score'] = pd.qcut(rfm_df['R_Score'], 5, labels=[1, 2, 3, 4, 5], duplicates='drop').astype(int)
@@ -425,44 +380,41 @@ def calculate_rfm(df_orders: pd.DataFrame, df_customers_master: pd.DataFrame) ->
 
     rfm_df['RFM_Score'] = rfm_df['R_Score'].astype(str) + rfm_df['F_Score'].astype(str) + rfm_df['M_Score'].astype(str)
 
-    # --- RFM Segmentation ---
     def rfm_segment(row):
         if row['R_Score'] >= 4 and row['F_Score'] >= 4 and row['M_Score'] >= 4:
-            return 'Champions' # Bought recently, buy often, spend a lot
+            return 'Champions'
         elif row['R_Score'] >= 4 and row['F_Score'] >= 3:
-            return 'Loyal Customers' # Buy often, fairly recently
+            return 'Loyal Customers'
         elif row['R_Score'] >= 3 and row['F_Score'] >= 3 and row['M_Score'] >= 3:
-            return 'Potential Loyalists' # Average scores, good potential
+            return 'Potential Loyalists'
         elif row['R_Score'] >= 3 and row['F_Score'] < 3 and row['M_Score'] < 3:
-            return 'Needs Attention' # Recent but low frequency/monetary
+            return 'Needs Attention'
         elif row['R_Score'] <= 2 and row['F_Score'] >= 4:
-            return 'At Risk' # Used to buy often, but not recently
+            return 'At Risk'
         elif row['R_Score'] <= 2 and row['F_Score'] <= 2 and row['M_Score'] <= 2:
-            return 'Churned' # Haven't bought recently, don't buy often, don't spend much
-        elif row['R_Score'] >= 4 and row['F_Score'] <=2: # Catch new customers (high recency, low freq/monetary)
+            return 'Churned'
+        elif row['R_Score'] >= 4 and row['F_Score'] <=2:
             return 'New Customers'
         else:
-            return 'Other' # Catch-all for less common combinations
+            return 'Other'
 
     rfm_df['RFM_Segment'] = rfm_df.apply(rfm_segment, axis=1)
 
-    # Merge RFM data into the master customer DataFrame
     df_customers_master_with_rfm = df_customers_master.merge(rfm_df, on='customer_id', how='left')
-    
+
     if 'Recency' in df_customers_master_with_rfm.columns:
-        max_recency_val = df_customers_master_with_rfm['Recency'].max() if not df_customers_master_with_rfm['Recency'].empty else 365 # Default if no recency exists
-        df_customers_master_with_rfm['Recency'] = df_customers_master_with_rfm['Recency'].fillna(max_recency_val + 30) # Assign high recency
+        max_recency_val = df_customers_master_with_rfm['Recency'].max() if not df_customers_master_with_rfm['Recency'].empty else 365
+        df_customers_master_with_rfm['Recency'] = df_customers_master_with_rfm['Recency'].fillna(max_recency_val + 30)
     else:
-        df_customers_master_with_rfm['Recency'] = 0 
+        df_customers_master_with_rfm['Recency'] = 0
 
     df_customers_master_with_rfm['Frequency'] = df_customers_master_with_rfm['Frequency'].fillna(0)
     df_customers_master_with_rfm['Monetary'] = df_customers_master_with_rfm['Monetary'].fillna(0)
 
-    # Fill scores with 1 for customers with no orders (lowest score)
     df_customers_master_with_rfm['R_Score'] = df_customers_master_with_rfm['R_Score'].fillna(1).astype(int)
     df_customers_master_with_rfm['F_Score'] = df_customers_master_with_rfm['F_Score'].fillna(1).astype(int)
     df_customers_master_with_rfm['M_Score'] = df_customers_master_with_rfm['M_Score'].fillna(1).astype(int)
-    df_customers_master_with_rfm['RFM_Score'] = df_customers_master_with_rfm['RFM_Score'].fillna('111') 
-    df_customers_master_with_rfm['RFM_Segment'] = df_customers_master_with_rfm['RFM_Segment'].fillna('New/Inactive') 
+    df_customers_master_with_rfm['RFM_Score'] = df_customers_master_with_rfm['RFM_Score'].fillna('111')
+    df_customers_master_with_rfm['RFM_Segment'] = df_customers_master_with_rfm['RFM_Segment'].fillna('New/Inactive')
 
     return df_customers_master_with_rfm

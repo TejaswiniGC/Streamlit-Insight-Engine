@@ -3,7 +3,8 @@ import pandas as pd
 from utils.data_loader import load_ecommerce_data, get_filtered_data
 from utils.plot_utils import plot_bar_chart
 from utils.kpi_calculations import format_kpi_number
-import plotly.express as px # For map visualization
+import plotly.express as px 
+from datetime import date
 
 st.set_page_config(layout="wide", page_title="Geospatial Analysis", page_icon="🗺️")
 
@@ -32,7 +33,7 @@ st.sidebar.header(":blue[🗺️ Apply Filters]")
 if not df.empty:
     valid_order_dates = df['order_date'].dropna()
     if not valid_order_dates.empty:
-        min_date_available = valid_order_dates.min().date()
+        min_date_available = date(2025, 7, 13)
         max_date_available = valid_order_dates.max().date()
     else:
         min_date_available = pd.Timestamp.now().date() - pd.Timedelta(days=365)
