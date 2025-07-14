@@ -237,12 +237,11 @@ else:
                 title='Customer Return Behavior',
                 labels={'Order Group': 'Number of Orders Made', 'Number of Customers': 'Count of Customers'},
                 color='Number of Customers', 
-                text='Formatted_Customers' 
+                #text='Formatted_Customers' 
             )
-            fig_return_behavior.update_traces(texttemplate='%{text}', textposition='outside')
+            #fig_return_behavior.update_traces(texttemplate='%{text}', textposition='outside')
             fig_return_behavior.update_layout(uniformtext_minsize=8, uniformtext_mode='hide', 
-                                              coloraxis_showscale=False,
-                                              yaxis=dict(range=[0, grouped_order_count_dist['Number of Customers'].max() * 1.1])) 
+                                              coloraxis_showscale=False) 
             st.plotly_chart(fig_return_behavior, use_container_width=True)
         else:
             st.info("No order count data available for customer return behavior analysis.")

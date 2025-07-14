@@ -119,7 +119,7 @@ if not df.empty:
                     title='Top 10 Products by Revenue',
                     labels={'product_name': 'Product Name', 'line_item_revenue': 'Revenue (₹)'},
                     orientation='h',
-                    text='Formatted_Revenue'
+                    #text='Formatted_Revenue'
                 )
                 fig_top_products_revenue.update_traces(textposition='outside')
                 fig_top_products_revenue.update_layout(
@@ -146,7 +146,7 @@ if not df.empty:
                     title='Top 10 Products by Quantity Sold',
                     labels={'product_name': 'Product Name', 'quantity': 'Quantity Sold'},
                     orientation='h',
-                    text='Formatted_Quantity'
+                    #text='Formatted_Quantity'
                 )
                 fig_top_products_quantity.update_traces(textposition='outside')
                 fig_top_products_quantity.update_layout(
@@ -162,7 +162,7 @@ if not df.empty:
         st.markdown("---")
 
         # --- Product Performance by Compound Tags ---
-        st.write("#### Product Performance by Tags (Combinations)")
+        st.write("#### Product Performance by Tags")
 
         if 'product_tags_compound' in df_filtered.columns and not df_filtered['product_tags_compound'].dropna().empty:
             if 'line_item_revenue' in df_filtered.columns:
@@ -178,10 +178,10 @@ if not df.empty:
                             compound_tag_revenue.sort_values(by='line_item_revenue', ascending=False),
                             x='line_item_revenue',
                             y='product_tags_compound',
-                            title='Top Product Tag Combinations by Revenue',
+                            title='Top Product Tags by Revenue',
                             labels={'product_tags_compound': 'Tag Combination', 'line_item_revenue': 'Revenue (₹)'},
                             orientation='h',
-                            text='Formatted_Revenue'
+                            #text='Formatted_Revenue'
                         )
                         fig_compound_tag_revenue.update_traces(textposition='outside')
                         fig_compound_tag_revenue.update_layout(
@@ -202,10 +202,10 @@ if not df.empty:
                             compound_tag_quantity.sort_values(by='quantity', ascending=False),
                             x='quantity',
                             y='product_tags_compound',
-                            title='Top Product Tag Combinations by Quantity Sold',
+                            title='Top Product Tags by Quantity Sold',
                             labels={'product_tags_compound': 'Tag Combination', 'quantity': 'Quantity Sold'},
                             orientation='h',
-                            text='Formatted_Quantity'
+                            #text='Formatted_Quantity'
                         )
                         fig_compound_tag_quantity.update_traces(textposition='outside')
                         fig_compound_tag_quantity.update_layout(
