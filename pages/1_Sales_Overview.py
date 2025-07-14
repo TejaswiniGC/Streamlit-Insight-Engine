@@ -190,7 +190,7 @@ if not df.empty:
             if 'order_status_from_tag' in df_filtered.columns:
                 fulfillment_status_sales = df_filtered.drop_duplicates(subset=['order_id']).groupby('order_status_from_tag')['total_order_value'].sum().reset_index()
                 if not fulfillment_status_sales.empty:
-                    fig_fulfillment = plot_bar_chart(fulfillment_status_sales, 'order_status_from_tag', 'total_order_value', 'Revenue by Order Status', 'Processing Status', 'Revenue (₹)')
+                    fig_fulfillment = plot_bar_chart(fulfillment_status_sales, 'order_status_from_tag', 'total_order_value', 'Revenue by Order Status', 'Order Status', 'Revenue (₹)')
                     st.plotly_chart(fig_fulfillment, use_container_width=True)
                 else:
                     st.info("No data for Extracted Fulfillment Status breakdown.")
