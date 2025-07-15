@@ -131,11 +131,11 @@ if not df.empty:
         with col3:
             st.metric("Avg Order Value", f"₹ {format_kpi_number(kpis['average_order_value'])}") # Shortened label
         with col4:
-            st.metric("Total Discount", f"₹ {format_kpi_number(kpis['total_discount_amount'])}") # Shortened label
+            st.metric("Total Discount Amt", f"₹ {format_kpi_number(kpis['total_discount_amount'])}") # Shortened label
         with col5:
-            st.metric("Total Shipping", f"₹ {format_kpi_number(kpis['total_shipping_cost'])}") # Shortened label
+            st.metric("Total Shipping Cost", f"₹ {format_kpi_number(kpis['total_shipping_cost'])}") # Shortened label
         with col6:
-            st.metric("Total Tax", f"₹ {format_kpi_number(kpis['total_tax_amount'])}") # Shortened label
+            st.metric("Total Tax Amt", f"₹ {format_kpi_number(kpis['total_tax_amount'])}") # Shortened label
        
 
         st.markdown("---")
