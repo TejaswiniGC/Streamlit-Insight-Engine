@@ -300,7 +300,8 @@ if not df.empty:
         if all(col in df_filtered.columns for col in ['product_name', 'stock_available', 'product_sku']):
 
             latest_stock = df_filtered.drop_duplicates(subset=['product_sku'], keep='last')[['product_name', 'product_sku', 'stock_available']].copy()
-            latest_stock['stock_available'] = latest_stock['stock_available'].astype(int)
+
+            latest_stock['stock_available'] = latest_stock['stock_available'].fillna(0).astype(int)
 
             low_stock_threshold = 20
 
